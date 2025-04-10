@@ -1,0 +1,84 @@
+1) Municipios con Mayor Venta 2023	
+Los cinco (5) municipios con mayor cantidad de gaseosas vendidas en 2023	Debe colocar aquí la sentencia SQL que obtiene la métrica que se encuentra en la descripción
+
+SELECT municipio, SUM(cantidad) AS total 
+FROM vista_operaciones 
+WHERE fecha LIKE '2023-%'
+GROUP BY municipio 
+ORDER BY total DESC 
+LIMIT 5;
+
+2) Municipios con Menor Venta 2023	
+Los cinco (5) departamentos con menor monto ventas de gaseosas en 2023	Debe colocar aquí la sentencia SQL que obtiene la métrica que se encuentra en la descripción
+
+SELECT departamento, SUM(venta) AS total_ventas
+FROM vista_operaciones 
+WHERE fecha LIKE '2023-%'
+GROUP BY departamento
+ORDER BY total_ventas ASC
+LIMIT 5;
+
+3) Municipios con Mayor Venta por Unidad en Mayo 2023	
+Los diez (10) municipios con mayores cantidades de venta de unidades en mayo 2023	
+
+SELECT municipio, SUM(cantidad) AS total_cantidad
+FROM vista_operaciones 
+WHERE fecha LIKE '2023-05-%'
+GROUP BY municipio
+ORDER BY total_cantidad DESC
+LIMIT 10;
+
+4) Ventas Totales en la Región Caribe 2023	
+Total de montos de ventas por producto en la Región Caribe en 2023	
+
+SELECT producto, SUM(venta) AS total_ventas
+FROM vista_operaciones
+WHERE departamento IN (
+  'Atlántico', 'Bolívar', 'Cesar',
+  'Córdoba', 'La Guajira', 'Magdalena', 'Sucre'
+)
+AND fecha LIKE '2023-%'
+GROUP BY producto
+ORDER BY total_ventas DESC;
+
+
+5) Total de Unidades Vendidas por Producto en Región Centro Sur	
+Total de cantidades vendidas por producto en la Región Centro Sur	
+
+SELECT producto, SUM(cantidad) AS total_cantidad
+FROM vista_operaciones
+WHERE departamento IN (
+  'Antioquia', 'Cundinamarca', 'Tolima',
+  'Huila', 'Caquetá'
+)
+GROUP BY producto
+ORDER BY total_cantidad DESC;
+
+6) Total Ventas por Productos 2022	
+Total de Ventas en 2022 por Productos	
+
+SELECT producto, SUM(venta) AS total_ventas
+FROM vista_operaciones
+WHERE fecha LIKE '2022-%'
+GROUP BY producto
+ORDER BY total_ventas DESC;
+
+7) Total Ventas por Productos 2023	
+Total de Ventas en 2023 por Productos	
+SELECT producto, SUM(venta) AS total_ventas
+FROM vista_operaciones
+WHERE fecha LIKE '2023-%'
+GROUP BY producto
+ORDER BY total_ventas DESC;
+
+8) Promedio de venta por Departamentos	
+Promedio de Ventas Totales por Departamentos año 2022-2023	
+
+SELECT departamento, ROUND(AVG(venta)) AS promedio_ventas
+FROM vista_operaciones
+WHERE fecha LIKE '2022-%' OR fecha LIKE '2023-%'
+GROUP BY departamento
+ORDER BY promedio_ventas DESC;
+
+
+
