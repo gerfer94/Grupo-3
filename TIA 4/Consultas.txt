@@ -1,3 +1,4 @@
+-------------------------Metricas--------------------------------------------------
 1) Municipios con Mayor Venta 2023	
 Los cinco (5) municipios con mayor cantidad de gaseosas vendidas en 2023	Debe colocar aquí la sentencia SQL que obtiene la métrica que se encuentra en la descripción
 
@@ -80,5 +81,146 @@ WHERE fecha LIKE '2022-%' OR fecha LIKE '2023-%'
 GROUP BY departamento
 ORDER BY promedio_ventas DESC;
 
+
+--------------------------------KPI-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+1) Incremento de Cantidades Vendidas por Producto 2023-2022	
+Productos que tuvieron un incremento en las cantidades vendidas en 2023 comparado con las ventas de 2022	
+
+SELECT producto, 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END) AS Cantidades_Vendidas_2022,
+       SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) AS Cantidades_Vendidas_2023,
+	   SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) - 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END) AS Incremento_unidades
+FROM vista_operaciones
+GROUP BY Producto
+HAVING SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) > 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END);
+
+2) Incremento de Ventas por Producto 2023-2022	
+Productos que tuvieron un incremento en los montos de 2023 comparado con las ventas de 2022	
+
+SELECT producto, 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN venta ELSE 0 END) AS venta_2022,
+       SUM(CASE WHEN fecha LIKE '2023-%' THEN venta ELSE 0 END) AS venta_2023,
+	   SUM(CASE WHEN fecha LIKE '2023-%' THEN venta ELSE 0 END) -
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN venta ELSE 0 END) AS incremento_venta
+FROM vista_operaciones
+GROUP BY producto
+HAVING SUM(CASE WHEN fecha LIKE '2023-%' THEN venta ELSE 0 END) >
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN venta ELSE 0 END);
+
+3) Municipios con Incremento de Ventas 2023-2022	
+Los cinco (5) municipios con mejor desempeño en montos de venta en 2023 comparado con las cifras de 2022.
+	
+SELECT municipio, 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN venta ELSE 0 END) AS ventas_2022,
+       SUM(CASE WHEN fecha LIKE '2023-%' THEN venta ELSE 0 END) AS ventas_2023,
+       (SUM(CASE WHEN fecha LIKE '2023-%' THEN venta ELSE 0 END) -
+        SUM(CASE WHEN fecha LIKE '2022-%' THEN venta ELSE 0 END)) AS incremento_ventas
+FROM vista_operaciones
+GROUP BY municipio
+ORDER BY incremento_ventas DESC
+LIMIT 5;
+
+4) Departamentos de la Región Caribe con Disminución de  Ventas de NARANJITA 2023-2022	
+Los cinco (5) departamentos que tuvieron peor desempeño de cantidad de unidades vendidas del producto NARANJITA de la Región Caribe en 2023 comparado con los resultados de 2022.	
+
+SELECT departamento,
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END) AS cantidad_2022,
+       SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) AS cantidad_2023,
+       (SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) -
+        SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END)) AS disminucion_cantidad
+FROM vista_operaciones
+WHERE producto = 'NARANJITA' 
+AND departamento IN ('Atlántico', 'Bolívar', 'Cesar', 'Córdoba', 'La Guajira', 'Magdalena', 'Sucre')
+GROUP BY departamento
+HAVING SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) < 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END)
+LIMIT 5
+
+5) Diferencia en Unidades Vendidas por Departamentos de MANZALOCA 2023-2022	
+Los departamentos con diferencia en la cantidad de unidades vendidas del producto MANZALOCA en 2023 comparado con los resultados de 2022.	
+
+SELECT 
+  departamento,
+  'MANZALOCA' AS producto,
+  SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END) AS cantidad_2022,
+  SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) AS cantidad_2023,
+  SUM(CASE WHEN fecha LIKE '2023-%' THEN cantidad ELSE 0 END) - 
+       SUM(CASE WHEN fecha LIKE '2022-%' THEN cantidad ELSE 0 END) AS diferencia
+FROM vista_operaciones
+WHERE producto = 'MANZALOCA'
+GROUP BY departamento
+ORDER BY diferencia DESC;
+
+
+6) Diferencia en Ventas por Region de Marzo 2023-2022	
+Total de Ventas Registradas en Marzo por Región en 2023 comparado con el mismo mes del 2022.	
+
+SELECT 
+  CASE 
+    WHEN departamento IN ('Atlántico', 'Bolívar', 'Cesar', 'Córdoba', 'La Guajira', 'Magdalena', 'Sucre', 'San Andrés') THEN 'Caribe'
+    WHEN departamento IN ('Antioquia', 'Boyacá', 'Cundinamarca', 'Huila', 'Norte de Santander', 'Santander', 'Tolima', 'Bogotá D.C.', 'Caldas', 'Quindío', 'Risaralda') THEN 'Andina'
+    WHEN departamento IN ('Cauca', 'Chocó', 'Nariño', 'Valle del Cauca') THEN 'Pacífica'
+    WHEN departamento IN ('Arauca', 'Casanare', 'Meta', 'Vichada') THEN 'Orinoquía'
+    WHEN departamento IN ('Amazonas', 'Caquetá', 'Guaviare', 'Guainía', 'Putumayo', 'Vaupés') THEN 'Amazonía'
+    ELSE 'Otras' 
+  END AS region,
+  SUM(CASE WHEN fecha LIKE '2022-03-%' THEN venta ELSE 0 END) AS ventas_marzo_2022,
+  SUM(CASE WHEN fecha LIKE '2023-03-%' THEN venta ELSE 0 END) AS ventas_marzo_2023,
+  SUM(CASE WHEN fecha LIKE '2023-03-%' THEN venta ELSE 0 END) - 
+  SUM(CASE WHEN fecha LIKE '2022-03-%' THEN venta ELSE 0 END) AS diferencia
+FROM vista_operaciones
+GROUP BY region
+ORDER BY diferencia DESC;
+
+
+7) Comparación Primer Trimestre por Región de 2023-2022	
+Ventas del Primer Trimestre por Región del 2023 Comparado con los Resultados del 2022.	
+
+SELECT 
+  CASE 
+    WHEN departamento IN ('Atlántico', 'Bolívar', 'Cesar', 'Córdoba', 'La Guajira', 'Magdalena', 'Sucre', 'San Andrés') THEN 'Caribe'
+    WHEN departamento IN ('Antioquia', 'Boyacá', 'Cundinamarca', 'Huila', 'Norte de Santander', 'Santander', 'Tolima', 'Bogotá D.C.', 'Caldas', 'Quindío', 'Risaralda') THEN 'Andina'
+    WHEN departamento IN ('Cauca', 'Chocó', 'Nariño', 'Valle del Cauca') THEN 'Pacífica'
+    WHEN departamento IN ('Arauca', 'Casanare', 'Meta', 'Vichada') THEN 'Orinoquía'
+    WHEN departamento IN ('Amazonas', 'Caquetá', 'Guaviare', 'Guainía', 'Putumayo', 'Vaupés') THEN 'Amazonía'
+    ELSE 'Otras' 
+  END AS region,
+  
+  SUM(CASE WHEN fecha LIKE '2022-01-%' OR fecha LIKE '2022-02-%' OR fecha LIKE '2022-03-%' THEN venta ELSE 0 END) AS ventas_2022,
+  SUM(CASE WHEN fecha LIKE '2023-01-%' OR fecha LIKE '2023-02-%' OR fecha LIKE '2023-03-%' THEN venta ELSE 0 END) AS ventas_2023,
+  SUM(CASE WHEN fecha LIKE '2023-01-%' OR fecha LIKE '2023-02-%' OR fecha LIKE '2023-03-%' THEN venta ELSE 0 END) - 
+  SUM(CASE WHEN fecha LIKE '2022-01-%' OR fecha LIKE '2022-02-%' OR fecha LIKE '2022-03-%' THEN venta ELSE 0 END) AS diferencia
+
+FROM vista_operaciones
+GROUP BY region
+ORDER BY diferencia DESC;
+
+
+8) Comparación Último Trimestre por Región de 2023-2022	
+Ventas del Último Trimestre por Región del 2023 Comparado con los Resultados del 2022.	
+
+SELECT 
+  CASE 
+    WHEN departamento IN ('Atlántico', 'Bolívar', 'Cesar', 'Córdoba', 'La Guajira', 'Magdalena', 'Sucre', 'San Andrés') THEN 'Caribe'
+    WHEN departamento IN ('Antioquia', 'Boyacá', 'Cundinamarca', 'Huila', 'Norte de Santander', 'Santander', 'Tolima', 'Bogotá D.C.', 'Caldas', 'Quindío', 'Risaralda') THEN 'Andina'
+    WHEN departamento IN ('Cauca', 'Chocó', 'Nariño', 'Valle del Cauca') THEN 'Pacífica'
+    WHEN departamento IN ('Arauca', 'Casanare', 'Meta', 'Vichada') THEN 'Orinoquía'
+    WHEN departamento IN ('Amazonas', 'Caquetá', 'Guaviare', 'Guainía', 'Putumayo', 'Vaupés') THEN 'Amazonía'
+    ELSE 'Otras' 
+  END AS region,
+  
+  SUM(CASE WHEN fecha LIKE '2022-09-%' OR fecha LIKE '2022-10-%' OR fecha LIKE '2022-11-%' THEN venta ELSE 0 END) AS ventas_2022,
+  SUM(CASE WHEN fecha LIKE '2023-09-%' OR fecha LIKE '2023-10-%' OR fecha LIKE '2023-11-%' THEN venta ELSE 0 END) AS ventas_2023,
+  SUM(CASE WHEN fecha LIKE '2023-09-%' OR fecha LIKE '2023-10-%' OR fecha LIKE '2023-11-%' THEN venta ELSE 0 END) - 
+  SUM(CASE WHEN fecha LIKE '2022-09-%' OR fecha LIKE '2022-10-%' OR fecha LIKE '2022-11-%' THEN venta ELSE 0 END) AS diferencia
+
+FROM vista_operaciones
+GROUP BY region
+ORDER BY diferencia DESC;
 
 
