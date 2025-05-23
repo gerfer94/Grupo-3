@@ -1,0 +1,450 @@
+--Crear la base de datos 
+CREATE DATABASE monitoreo_produccion
+    WITH
+    OWNER = postgres
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en-US'
+    LC_CTYPE = 'en-US'
+    LOCALE_PROVIDER = 'libc'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1
+    IS_TEMPLATE = False;
+
+-- Tabla EMPLEADOS
+CREATE TABLE empleados (
+    id_empleado SERIAL PRIMARY KEY,
+    cedula VARCHAR(20) UNIQUE NOT NULL,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    cargo VARCHAR(50) NOT NULL,
+    telefono VARCHAR(15),
+    email VARCHAR(100) UNIQUE,
+    estado VARCHAR(10) CHECK (estado IN ('ACTIVO', 'INACTIVO')) DEFAULT 'ACTIVO',
+    fecha_ingreso DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla TURNOS
+CREATE TABLE turnos (
+    id_turno SERIAL PRIMARY KEY,
+    nombre_turno VARCHAR(50) NOT NULL,
+    hora_inicio TIME NOT NULL,
+    hora_fin TIME NOT NULL,
+    id_supervisor INT,
+    descripcion TEXT,
+    estado VARCHAR(10) CHECK (estado IN ('ACTIVO', 'INACTIVO')) DEFAULT 'ACTIVO',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_supervisor) REFERENCES empleados(id_empleado)
+);
+
+-- Tabla LINEAS_PRODUCCION
+CREATE TABLE lineas_produccion (
+    id_linea SERIAL PRIMARY KEY,
+    nombre_linea VARCHAR(50) NOT NULL,
+    producto VARCHAR(100) NOT NULL,
+    capacidad_produccion NUMERIC(10,2),
+    ubicacion VARCHAR(100) NOT NULL,
+    estado VARCHAR(15) CHECK (estado IN ('OPERATIVA', 'MANTENIMIENTO', 'PARADA')) DEFAULT 'OPERATIVA',
+    fecha_instalacion DATE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla NIVELES_PELIGROSIDAD
+CREATE TABLE niveles_peligrosidad (
+    id_nivel SERIAL PRIMARY KEY,
+    nombre_nivel VARCHAR(50) NOT NULL,
+    ppm_minimo NUMERIC(10,2) NOT NULL,
+    ppm_maximo NUMERIC(10,2) NOT NULL,
+    color_alarma VARCHAR(20) NOT NULL,
+    descripcion TEXT,
+    protocolo_seguridad TEXT NOT NULL,
+    requiere_parada BOOLEAN DEFAULT FALSE,
+    requiere_evacuacion BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla SENSORES
+CREATE TABLE sensores (
+    id_sensor SERIAL PRIMARY KEY,
+    codigo_sensor VARCHAR(20) UNIQUE NOT NULL,
+    id_linea INT NOT NULL,
+    tipo_sensor VARCHAR(50) NOT NULL,
+    marca VARCHAR(50),
+    modelo VARCHAR(50),
+    precision_ppm NUMERIC(5,2),
+    rango_medicion_min NUMERIC(10,2) NOT NULL,
+    rango_medicion_max NUMERIC(10,2) NOT NULL,
+    fecha_instalacion TIMESTAMP NOT NULL,
+    fecha_calibracion TIMESTAMP,
+    estado VARCHAR(15) CHECK (estado IN ('ACTIVO', 'INACTIVO', 'MANTENIMIENTO')) DEFAULT 'ACTIVO',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_linea) REFERENCES lineas_produccion(id_linea)
+);
+
+-- Tabla FILTROS
+CREATE TABLE filtros (
+    id_filtro SERIAL PRIMARY KEY,
+    codigo_filtro VARCHAR(20) UNIQUE NOT NULL,
+    id_linea INT NOT NULL,
+    tipo_filtro VARCHAR(50) NOT NULL,
+    marca VARCHAR(50),
+    modelo VARCHAR(50),
+    costo NUMERIC(10,2) NOT NULL,
+    vida_util_dias INT NOT NULL,
+    fecha_instalacion TIMESTAMP NOT NULL,
+    fecha_vencimiento TIMESTAMP NOT NULL,
+    fecha_cambio TIMESTAMP,
+    estado VARCHAR(15) CHECK (estado IN ('NUEVO', 'EN_USO', 'VENCIDO', 'CAMBIADO')) DEFAULT 'NUEVO',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_linea) REFERENCES lineas_produccion(id_linea)
+);
+
+-- Tabla LECTURAS
+CREATE TABLE lecturas (
+    id_lectura BIGSERIAL PRIMARY KEY,
+    id_sensor INT NOT NULL,
+    id_turno INT NOT NULL,
+    id_nivel INT NOT NULL,
+    concentracion_ppm NUMERIC(10,4) NOT NULL,
+    temperatura NUMERIC(5,2),
+    humedad NUMERIC(5,2),
+    presion NUMERIC(7,2),
+    fecha_hora TIMESTAMP NOT NULL,
+    estado_lectura VARCHAR(15) CHECK (estado_lectura IN ('NORMAL', 'ANOMALIA', 'ERROR')) DEFAULT 'NORMAL',
+    observaciones TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_sensor) REFERENCES sensores(id_sensor),
+    FOREIGN KEY (id_turno) REFERENCES turnos(id_turno),
+    FOREIGN KEY (id_nivel) REFERENCES niveles_peligrosidad(id_nivel)
+);
+
+CREATE INDEX idx_fecha_hora ON lecturas(fecha_hora);
+CREATE INDEX idx_sensor_fecha ON lecturas(id_sensor, fecha_hora);
+CREATE INDEX idx_concentracion ON lecturas(concentracion_ppm);
+
+-- Tabla ALARMAS
+CREATE TABLE alarmas (
+    id_alarma BIGSERIAL PRIMARY KEY,
+    id_lectura BIGINT NOT NULL,
+    tipo_alarma VARCHAR(50) NOT NULL,
+    nivel_criticidad VARCHAR(10) CHECK (nivel_criticidad IN ('BAJA', 'MEDIA', 'ALTA', 'CRITICA')) NOT NULL,
+    mensaje TEXT NOT NULL,
+    fecha_hora_inicio TIMESTAMP NOT NULL,
+    fecha_hora_fin TIMESTAMP,
+    estado_alarma VARCHAR(15) CHECK (estado_alarma IN ('ACTIVA', 'RECONOCIDA', 'RESUELTA')) DEFAULT 'ACTIVA',
+    accion_tomada TEXT,
+    responsable VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_lectura) REFERENCES lecturas(id_lectura)
+);
+
+CREATE INDEX idx_estado_fecha ON alarmas(estado_alarma, fecha_hora_inicio);
+CREATE INDEX idx_criticidad ON alarmas(nivel_criticidad);
+-- Tabla TURNOS_LINEAS (Intermedia)
+CREATE TABLE turnos_lineas (
+    id_turno_linea SERIAL PRIMARY KEY,
+    id_turno INT NOT NULL,
+    id_linea INT NOT NULL,
+    fecha DATE NOT NULL,
+    estado_operacion VARCHAR(15) CHECK (estado_operacion IN ('OPERANDO', 'PARADA', 'MANTENIMIENTO')) DEFAULT 'OPERANDO',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_turno) REFERENCES turnos(id_turno),
+    FOREIGN KEY (id_linea) REFERENCES lineas_produccion(id_linea),
+    UNIQUE (id_turno, id_linea, fecha)
+);
+
+
+
+----------------------------Insercion-------------------------------------
+
+INSERT INTO empleados (cedula, nombres, apellidos, cargo, telefono, email, estado, fecha_ingreso) VALUES
+('1234567890', 'Juan', 'Pérez', 'Supervisor de Planta', '3001234567', 'juan.perez@sustanciaslocas.com', 'ACTIVO', '2020-01-15'),
+('2345678901', 'María', 'Gómez', 'Operario de línea', '3102345678', 'maria.gomez@sustanciaslocas.com', 'ACTIVO', '2021-03-22'),
+('3456789012', 'Carlos', 'Rodríguez', 'Operario de línea', '3203456789', 'carlos.rodriguez@sustanciaslocas.com', 'ACTIVO', '2021-05-10'),
+('4567890123', 'Ana', 'Martínez', 'Supervisor de Planta', '3014567890', 'ana.martinez@sustanciaslocas.com', 'ACTIVO', '2019-11-05'),
+('5678901234', 'Luis', 'Hernández', 'Operario de línea', '3115678901', 'luis.hernandez@sustanciaslocas.com', 'ACTIVO', '2022-02-18'),
+('6789012345', 'Patricia', 'Díaz', 'Supervisor de Planta', '3176789012', 'patricia.diaz@sustanciaslocas.com', 'ACTIVO', '2020-07-30');
+
+
+INSERT INTO turnos (nombre_turno, hora_inicio, hora_fin, id_supervisor, descripcion, estado) VALUES
+('Turno Mañana', '08:00:00', '16:00:00', 3, 'Turno diurno principal', 'ACTIVO'),
+('Turno Tarde', '16:00:00', '00:00:00', 4, 'Turno vespertino', 'ACTIVO'),
+('Turno Noche', '00:00:00', '08:00:00', 6, 'Turno nocturno', 'ACTIVO');
+
+
+INSERT INTO lineas_produccion (nombre_linea, producto, capacidad_produccion, ubicacion, estado, fecha_instalacion) VALUES
+('Línea A', 'Benceno Grado Industrial', 1500.50, 'Nave 1 - Sector Este', 'OPERATIVA', '2018-05-15'),
+('Línea B', 'Benceno Grado Industrial', 1450.75, 'Nave 1 - Sector Oeste', 'OPERATIVA', '2018-06-20'),
+('Línea C', 'Benceno Grado Industrial', 1600.00, 'Nave 2 - Sector Norte', 'OPERATIVA', '2019-02-10'),
+('Línea D', 'Benceno Grado Industrial', 1550.25, 'Nave 2 - Sector Sur', 'OPERATIVA', '2019-03-05');
+
+
+
+INSERT INTO niveles_peligrosidad (nombre_nivel, ppm_minimo, ppm_maximo, color_alarma, descripcion, protocolo_seguridad, requiere_parada, requiere_evacuacion, created_at, updated_at) VALUES
+('Normal', 0.00, 0.99, 'Verde', 'Nivel seguro de concentración', 'Continuar operación normal', FALSE, FALSE),
+('Precaución', 1.00, 4.99, 'Amarillo', 'Nivel bajo de toxicidad', 'Revisar filtros y sensores. Monitorear continuamente', FALSE, FALSE),
+('Peligro', 5.00, 9.99, 'Naranja', 'Nivel moderado de toxicidad', 'Detener línea de producción. Evacuar personal no esencial', TRUE, TRUE),
+('Emergencia', 10.00, 9999.99, 'Rojo', 'Nivel alto de toxicidad', 'Evacuar toda la planta. Llamar a bomberos y defensa civil', TRUE, TRUE);
+
+
+INSERT INTO sensores (codigo_sensor, id_linea, tipo_sensor, marca, modelo, precision_ppm, rango_medicion_min, rango_medicion_max, fecha_instalacion, estado) VALUES
+('SENS-A-001', 1, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-10 08:00:00', '2023-06-15 10:00:00', 'ACTIVO'),
+('SENS-B-001', 1, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-10 08:00:00', '2023-06-15 10:00:00', 'ACTIVO'),
+('SENS-B-002', 2, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-15 08:00:00', '2023-06-20 10:00:00', 'ACTIVO'),
+('SENS-B-003', 2, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-15 08:00:00', '2023-06-20 10:00:00', 'ACTIVO'),
+('SENS-C-001', 3, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-20 08:00:00', '2023-06-25 10:00:00', 'ACTIVO'),
+('SENS-C-002', 3, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00', '2023-01-20 08:00:00', '2023-06-25 10:00:00', 'ACTIVO'),
+('SENS-D-001', 4, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00, '2023-01-25 08:00:00', '2023-06-30 10:00:00', 'ACTIVO'),
+('SENS-D-002', 4, 'Detector de Benceno', 'GasTech', 'GT-5000', 0.01, 0.00, 100.00', '2023-01-25 08:00:00', '2023-06-30 10:00:00', 'ACTIVO');
+
+
+INSERT INTO filtros (codigo_filtro, id_linea, tipo_filtro, marca, modelo, costo, vida_util_dias, fecha_instalacion, fecha_vencimiento, estado) VALUES
+('FILT-A-001', 1, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-01 08:00:00', '2023-06-16 08:00:00', 'EN_USO'),
+('FILT-A-002', 1, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-01 08:00:00', '2023-06-16 08:00:00', 'EN_USO'),
+('FILT-B-001', 2, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-05 08:00:00', '2023-06-20 08:00:00', 'EN_USO'),
+('FILT-B-002', 2, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-05 08:00:00', '2023-06-20 08:00:00', 'EN_USO'),
+('FILT-C-001', 3, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-10 08:00:00', '2023-06-25 08:00:00', 'EN_USO'),
+('FILT-C-002', 3, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-10 08:00:00', '2023-06-25 08:00:00', 'EN_USO'),
+('FILT-D-001', 4, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-15 08:00:00', '2023-06-30 08:00:00', 'EN_USO'),
+('FILT-D-002', 4, 'Filtro de Carbón Activado', 'PureAir', 'PA-3000', 300.00, 15, '2023-06-15 08:00:00', '2023-06-30 08:00:00', 'EN_USO');
+
+
+
+INSERT INTO turnos_lineas (id_turno, id_linea, fecha, estado_operacion) VALUES
+(1, 1, '2023-07-01', 'OPERANDO'),
+(1, 2, '2023-07-01', 'OPERANDO'),
+(1, 3, '2023-07-01', 'OPERANDO'),
+(1, 4, '2023-07-01', 'OPERANDO'),
+(2, 1, '2023-07-01', 'OPERANDO'),
+(2, 2, '2023-07-01', 'OPERANDO'),
+(2, 3, '2023-07-01', 'OPERANDO'),
+(2, 4, '2023-07-01', 'OPERANDO'),
+(3, 1, '2023-07-01', 'OPERANDO'),
+(3, 2, '2023-07-01', 'OPERANDO'),
+(3, 3, '2023-07-01', 'OPERANDO'),
+(3, 4, '2023-07-01', 'OPERANDO');
+
+INSERT INTO lecturas (id_sensor, id_turno, id_nivel, concentracion_ppm, temperatura, humedad, presion, fecha_hora, estado_lectura) VALUES
+(1, 1, 1, 0.25, 25.5, 45.0, 1013.25, '2023-07-01 08:15:00', 'NORMAL'),
+(1, 1, 1, 0.30, 25.7, 45.2, 1013.26, '2023-07-01 08:30:00', 'NORMAL'),
+(1, 1, 1, 0.28, 25.8, 45.5, 1013.28, '2023-07-01 08:45:00', 'NORMAL'),
+(1, 1, 1, 0.32, 26.0, 46.0, 1013.15, '2023-07-01 09:00:00', 'NORMAL'),
+(1, 1, 1, 1.25, 26.5, 47.0, 1013.10, '2023-07-01 10:30:00', 'NORMAL'),
+(1, 1, 1, 0.45, 26.8, 47.5, 1013.05, '2023-07-01 11:00:00', 'NORMAL'),
+(1, 2, 1, 0.50, 27.0, 48.0, 1013.00, '2023-07-01 16:15:00', 'NORMAL'),
+(1, 2, 1, 0.55, 27.2, 48.5, 1012.95, '2023-07-01 16:30:00', 'NORMAL'),
+(1, 2, 1, 0.60, 27.5, 49.0, 1012.90, '2023-07-01 17:00:00', 'NORMAL'),
+(1, 2, 2, 1.75, 28.0, 50.0, 1012.85, '2023-07-01 18:30:00', 'NORMAL'),
+(1, 2, 1, 0.70, 28.5, 51.0, 1012.80, '2023-07-01 19:00:00', 'NORMAL'),
+(1, 3, 1, 0.40, 25.0, 50.0, 1012.75, '2023-07-01 00:15:00', 'NORMAL'),
+(1, 3, 1, 0.35, 24.8, 49.5, 1012.70, '2023-07-01 01:00:00', 'NORMAL'),
+(1, 3, 1, 0.30, 24.5, 49.0, 1012.65, '2023-07-01 02:00:00', 'NORMAL'),
+(1, 3, 1, 0.25, 24.0, 48.5, 1012.60, '2023-07-01 03:00:00', 'NORMAL'),
+(1, 3, 1, 0.20, 23.8, 48.0, 1012.55, '2023-07-01 04:00:00', 'NORMAL');
+
+(3, 1, 1, 0.25, 25.5, 45.0, 1013.25, '2023-07-01 08:15:00', 'NORMAL'),
+(3, 1, 1, 0.30, 25.7, 45.2, 1013.26, '2023-07-01 08:30:00', 'NORMAL'),
+(3, 1, 1, 0.28, 25.8, 45.5, 1013.28, '2023-07-01 08:45:00', 'ANOMALIA'),
+(3, 1, 1, 0.32, 26.0, 46.0, 1013.15, '2023-07-01 09:00:00', 'NORMAL'),
+(3, 1, 1, 1.25, 26.5, 47.0, 1013.10, '2023-07-01 10:30:00', 'NORMAL'),
+(3, 1, 1, 0.45, 26.8, 47.5, 1013.05, '2023-07-01 11:00:00', 'NORMAL'),
+(3, 2, 1, 0.50, 27.0, 48.0, 1013.00, '2023-07-01 16:15:00', 'NORMAL'),
+(3, 2, 1, 0.55, 27.2, 48.5, 1012.95, '2023-07-01 16:30:00', 'NORMAL'),
+(3, 2, 1, 0.60, 27.5, 49.0, 1012.90, '2023-07-01 17:00:00', 'NORMAL'),
+(3, 2, 2, 1.75, 28.0, 50.0, 1012.85, '2023-07-01 18:30:00', 'NORMAL'),
+(3, 2, 1, 0.70, 28.5, 51.0, 1012.80, '2023-07-01 19:00:00', 'NORMAL'),
+(3, 3, 1, 0.40, 25.0, 50.0, 1012.75, '2023-07-01 00:15:00', 'NORMAL'),
+(3, 3, 1, 0.35, 24.8, 49.5, 1012.70, '2023-07-01 01:00:00', 'NORMAL'),
+(3, 3, 1, 0.30, 24.5, 49.0, 1012.65, '2023-07-01 02:00:00', 'NORMAL'),
+(3, 3, 1, 0.25, 24.0, 48.5, 1012.60, '2023-07-01 03:00:00', 'NORMAL'),
+(3, 3, 1, 0.20, 23.8, 48.0, 1012.55, '2023-07-01 04:00:00', 'NORMAL');
+
+
+
+INSERT INTO alarmas (id_lectura, tipo_alarma, nivel_criticidad, mensaje, fecha_hora_inicio, fecha_hora_fin, estado_alarma, accion_tomada, responsable, created_at, updated_at) VALUES
+(10, 'Nivel de Benceno Elevado', 'MEDIA', 'Concentración de benceno alcanzó 2.50 ppm', '2023-07-01 09:30:00', '2023-07-01 10:00:00', 'RESUELTA', ''),
+(20, 'Nivel de Benceno Peligroso', 'ALTA', 'Concentración de benceno alcanzó 5.75 ppm', '2023-07-01 10:30:00', '2023-07-01 10:45:00', 'RESUELTA', ''),
+(22, 'Nivel de Benceno Peligroso', 'ALTA', 'Concentración de benceno alcanzó 6.20 ppm', '2023-07-01 10:30:00', '2023-07-01 11:15:00', 'RESUELTA', ''),
+(22, 'Nivel de Benceno Elevado', 'MEDIA', 'Concentración de benceno alcanzó 3.00 ppm', '2023-07-01 11:30:00', '2023-07-01 12:00:00', 'RESUELTA', '');
+
+
+---------------------------------Consultas-------------------------------------
+
+--Listar todos los empleados activos
+
+SELECT id_empleado, cedula, nombres, apellidos, cargo, telefono, email
+FROM empleados
+WHERE estado = 'ACTIVO'
+ORDER BY apellidos, nombres;
+
+--Mostrar información de las líneas de producción
+
+SELECT id_linea, nombre_linea, producto, capacidad_produccion, ubicacion, estado, fecha_instalacion
+FROM lineas_produccion
+ORDER BY nombre_linea;
+
+--Sensores con próxima calibración requerida (última calibración hace más de 3 meses)
+
+SELECT s.id_sensor, s.codigo_sensor, l.nombre_línea, s.tipo_sensor,
+s.fecha_calibracion, s.estado,
+(NOW() - s.fecha_calibracion) AS tiempo_desde_calibracion
+FROM sensores s
+JOIN lineas_produccion l ON s.id_línea = l.id_línea
+WHERE s.estado = 'ACTIVO'
+AND s.fecha_calibracion < (NOW() - INTERVAL '3 months')
+ORDER BY s.fecha_calibracion;
+
+--Lecturas con niveles peligrosos
+
+SELECT l.id_lectura, s.codigo_sensor, lp.nombre_línea,
+np.nombre_nivel, l.concentracion_ppm,
+l.fecha_hora, l.estado_lectura
+FROM lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_línea = lp.id_línea
+JOIN niveles_peligrosidad np ON l.id_nivel = np.id_nivel
+WHERE l.fecha_hora BETWEEN '2023-07-01' AND '2023-07-02'
+AND l.id_nivel IN (3, 4) -- Peligro y Emergencia
+ORDER BY l.fecha_hora DESC;
+
+--Alarmas activas o no resueltas
+
+SELECT a.id_alarma, a.nivel_criticidad, a.mensaje,
+a.fecha_hora_inicio, a.estado_alarma,
+s.codigo_sensor, lp.nombre_línea,
+l.concentracion_ppm, np.nombre_nivel
+FROM alarmas a
+JOIN lecturas l ON a.id_lectura = l.id_lectura
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN líneas_produccion lp ON s.id_línea = lp.id_línea
+JOIN niveles_peligrosidad np ON l.id_nivel = np.id_nivel
+ORDER BY a.fecha_hora_inicio DESC;
+
+--Promedio de concentración por línea y turno
+
+SELECT lp.nombre_línea, t.nombre_turno,
+AVG(l.concentracion_ppm) AS promedio_ppm,
+MAX(l.concentracion_ppm) AS maximo_ppm,
+COUNT(CASE WHEN l.id_nivel IN (3,4) THEN 1 END) AS alertas_peligrosas
+FROM lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_línea = lp.id_línea
+JOIN turnos t ON l.id_turno = t.id_turno
+WHERE l.fecha_hora BETWEEN '2023-07-01' AND '2023-07-02'
+GROUP BY lp.nombre_línea, t.nombre_turno
+ORDER BY lp.nombre_línea, t.nombre_turno;
+
+--Filtros próximos a vencer
+
+SELECT f.id_ filtro, f.codigo_filtro, l.nombre_línea,
+f.tipo_filtro, f.fecha_vencimiento,
+(f.fecha_vencimiento - f.fecha_instalacion::date) AS dias_usados
+FROM filtros f
+JOIN líneas_produccion l ON f.id_línea = l.id_línea
+WHERE f.estado = 'EN_USO'
+AND f.fecha_vencimiento BETWEEN '2023-06-14' AND '2023-06-17'
+ORDER BY f.fecha_vencimiento;
+
+--Sensores con mayor número de anomalías
+
+SELECT s.id_sensor, s.codigo_sensor, lp.nombre_línea,
+COUNT(CASE WHEN l.estado_lectura = 'ANOMALIA' THEN 1 END) AS total_anomalías,
+COUNT(*) AS total_lecturas,
+ROUND(COUNT(CASE WHEN l.estado_lectura = 'ANOMALIA' THEN 1 END) * 100.0 / COUNT(*), 2) AS porcentaje_anomalías
+FROM lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN líneas_produccion lp ON s.id_línea = lp.id_línea
+WHERE l.fecha_hora BETWEEN '2023-07-01' AND '2023-07-02'
+GROUP BY s.id_sensor, s.codigo_sensor, lp.nombre_línea
+HAVING COUNT(CASE WHEN l.estado_lectura = 'ANOMALIA' THEN 1 END) > 0
+ORDER BY total_anomalías DESC;
+
+--Tendencia de concentración por hora
+
+SELECT
+DATE_TRUNC('hour', l.fecha_hora) AS hora,
+AVG(l.concentracion_ppm) AS promedio_ppm,
+MAX(l.concentracion_ppm) AS maximo_ppm,
+COUNT(*) AS lecturas
+FROM lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+WHERE s.id_línea = 1 -- Línea A
+AND l.fecha_hora >= NOW() - INTERVAL '7 days'
+GROUP BY hora
+ORDER BY hora;
+
+--Eficiencia de filtros comparando semanas
+
+SELECT
+  f.codigo_filtro,
+  lp.nombre_línea,
+  EXTRACT(WEEK FROM f.fecha_instalacion) AS semana_instalacion,
+  AVG(CASE WHEN l.fecha_hora < f.fecha_instalacion + INTERVAL '7 days'
+    THEN l.concentracion_ppm END) AS ppm_semana_1,
+  AVG(CASE WHEN l.fecha_hora >= f.fecha_instalacion + INTERVAL '7 days' AND l.fecha_hora < f.fecha_instalacion + INTERVAL '14 days'
+    THEN l.concentracion_ppm END) AS ppm_semana_2,
+  AVG(CASE WHEN l.fecha_hora >= f.fecha_instalacion + INTERVAL '14 days'
+    THEN l.concentracion_ppm END) AS ppm_semana_3
+FROM filtros f
+JOIN líneas_produccion lp ON f.id_línea = lp.id_línea
+JOIN sensores s ON f.id_línea = s.id_línea
+JOIN lecturas l ON s.id_sensor = l.id_sensor
+WHERE f.id_línea = 1
+  AND l.fecha_hora BETWEEN f.fecha_instalacion AND
+  LEAST(f.fecha_vencimiento, f.fecha_instalacion + INTERVAL '21 days')
+GROUP BY f.codigo_filtro, lp.nombre_línea, semana_instalacion;
+
+--Horarios con mayor incidencia de alertas
+
+SELECT
+  EXTRACT(HOUR FROM l.fecha_hora) AS hora_del_día,
+  t.nombre_turno,
+  COUNT(*) AS total_alertas,
+  COUNT(DISTINCT DATE(l.fecha_hora)) AS días_con_alertas
+FROM lecturas l
+JOIN niveles_peligrosidad np ON l.id_nivel = np.id_nivel
+JOIN turnos t ON l.id_turno = t.id_turno
+WHERE np.requiere_parada = TRUE
+  AND l.fecha_hora >= NOW() - INTERVAL '3 months'
+GROUP BY hora_del_día, t.nombre_turno
+ORDER BY total_alertas DESC;
+
+--Resumen general del sistema
+
+SELECT
+(SELECT COUNT(*) FROM lineas_produccion WHERE estado = 'OPERATIVA') AS lineas_operativas,
+(SELECT COUNT(*) FROM sensores WHERE estado = 'ACTIVO') AS sensores_activos,
+(SELECT COUNT(*) FROM filtros WHERE estado = 'EN_USO') AS filtros_activos,
+(SELECT COUNT(*) FROM alarmas WHERE estado_alarma = 'ACTIVA') AS alarmas_activas,
+(SELECT MAX(concentracion_ppm) FROM lecturas
+WHERE fecha_hora >= NOW() - INTERVAL '24 hours') AS max_ppm_24h,
+(SELECT COUNT(*) FROM lecturas
+WHERE fecha_hora >= NOW() - INTERVAL '1 hour') AS lecturas_ultima_hora;
+
+--Estado actual de cada línea de producción
+
+SELECT
+  lp.nombre_linea,
+  lp.estado AS estado_linea,
+  tl.estado_operacion,
+  COUNT(DISTINCT s.id_sensor) AS sensores_activos,
+  COUNT(DISTINCT f.id_filtro) AS filtros_activos,
+  MAX(l.fecha_hora) AS ultima_lectura,
+  ROUND(AVG(l.concentracion_ppm), 3) AS promedio_ppm_24h,
+  MAX(CASE WHEN np.requiere_parada = TRUE THEN l.concentracion_ppm ELSE 0 END) AS max_ppm_peligroso
+FROM lineas_produccion lp
+LEFT JOIN turnos_lineas tl ON lp.id_linea = tl.id_linea AND tl.fecha = CURRENT_DATE
+LEFT JOIN sensores s ON lp.id_linea = s.id_linea AND s.estado = 'ACTIVO'
+LEFT JOIN filtros f ON lp.id_linea = f.id_linea AND f.estado = 'EN_USO'
+LEFT JOIN lecturas l ON s.id_sensor = l.id_sensor AND l.fecha_hora >= NOW() - INTERVAL '24 hours'
+LEFT JOIN niveles_peligrosidad np ON l.id_nivel = np.id_nivel
+GROUP BY lp.nombre_linea, lp.estado, tl.estado_operacion
+ORDER BY lp.nombre_linea;
