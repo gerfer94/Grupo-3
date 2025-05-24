@@ -1,0 +1,21 @@
+id_lectura,fecha_hora,ppm_benceno,id_sensor,estado_alarma,id_line_produccion,usuario_turno
+1,2025-05-21 08:00:01,0.50,S01,normal,1,turno1
+2,2025-05-21 08:05:15,1.10,S02,advertencia,1,turno1
+3,2025-05-21 08:10:32,2.60,S03,crítica,2,turno1
+4,2025-05-21 08:15:45,0.80,S04,normal,3,turno1
+5,2025-05-21 08:21:10,1.70,S01,advertencia,1,turno1
+6,2025-05-21 08:25:50,3.40,S02,crítica,1,turno1
+7,2025-05-21 08:30:30,0.90,S03,normal,2,turno1
+8,2025-05-21 08:35:00,1.30,S04,advertencia,3,turno1
+9,2025-05-21 08:40:45,0.40,S01,normal,1,turno1
+10,2025-05-21 08:45:30,2.10,S02,crítica,1,turno1
+11,2025-05-21 08:50:00,0.60,S03,normal,2,turno1
+12,2025-05-21 08:52:10,1.50,S04,advertencia,3,turno1
+13,2025-05-21 08:55:25,3.00,S01,crítica,1,turno1
+14,2025-05-21 08:58:42,1.00,S02,advertencia,1,turno1
+15,2025-05-21 09:00:55,0.70,S03,normal,2,turno1
+16,2025-05-21 09:03:00,1.80,S04,crítica,3,turno1
+17,2025-05-21 09:06:10,0.30,S01,normal,1,turno1
+18,2025-05-21 09:08:25,2.90,S02,crítica,1,turno1
+19,2025-05-21 09:10:40,0.60,S03,normal,2,turno1
+20,2025-05-21 09:13:00,1.20,S04,advertencia,3,turno1
