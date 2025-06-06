@@ -1,0 +1,126 @@
+7.1
+
+SELECT
+    lp.nombre_linea AS fabrica,
+    DATE(l.fecha_hora) AS dia,
+    ROUND(AVG(l.concentracion_ppm), 2) AS promedio_ppm
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+WHERE
+    l.fecha_hora >= CURRENT_DATE - INTERVAL '3 days'
+GROUP BY
+    lp.nombre_linea,
+    DATE(l.fecha_hora)
+ORDER BY
+    lp.nombre_linea,
+    dia;
+
+/////
+7.2
+
+SELECT
+    lp.nombre_linea AS fabrica,
+    DATE_TRUNC('minute', l.fecha_hora) AS minuto,
+    ROUND(AVG(l.concentracion_ppm), 2) AS promedio_ppm
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+WHERE
+    l.fecha_hora >= '2025-05-05 05:00:00'
+    AND l.fecha_hora <  '2025-05-05 06:00:00'
+GROUP BY
+    lp.nombre_linea,
+    DATE_TRUNC('minute', l.fecha_hora)
+ORDER BY
+    lp.nombre_linea,
+    minuto;
+
+/////
+7.3
+
+SELECT
+    lp.nombre_linea AS fabrica,
+    DATE_TRUNC('hour', l.fecha_hora) AS hora,
+    ROUND(AVG(l.concentracion_ppm), 2) AS promedio_ppm
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+WHERE
+    l.fecha_hora::date = '2025-06-04'
+GROUP BY
+    lp.nombre_linea,
+    DATE_TRUNC('hour', l.fecha_hora)
+ORDER BY
+    lp.nombre_linea,
+    hora;
+
+
+/////
+7.4
+
+SELECT
+    lp.nombre_linea AS fabrica,
+    DATE_TRUNC('day', l.fecha_hora) AS dia,
+    ROUND(AVG(l.concentracion_ppm), 2) AS promedio_ppm
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+WHERE
+    l.fecha_hora >= CURRENT_DATE - INTERVAL '6 days'
+    AND l.fecha_hora < CURRENT_DATE + INTERVAL '1 day'
+GROUP BY
+    lp.nombre_linea,
+    DATE_TRUNC('day', l.fecha_hora)
+ORDER BY
+    lp.nombre_linea,
+    dia;
+
+
+/////
+7.5
+
+SELECT
+    s.id_sensor,
+    lp.nombre_linea AS fabrica,
+    ROUND(AVG(l.concentracion_ppm), 2) AS promedio_ppm
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+GROUP BY
+    s.id_sensor,
+    lp.nombre_linea
+ORDER BY
+    promedio_ppm DESC
+LIMIT 15;
+
+
+/////
+7.6
+
+SELECT
+    l.id_lectura,
+    s.id_sensor,
+    lp.nombre_linea AS fabrica,
+    l.fecha_hora,
+    l.concentracion_ppm,
+    CASE
+        WHEN l.concentracion_ppm <= 50 THEN 'Buena'
+        WHEN l.concentracion_ppm <= 100 THEN 'Moderada'
+        WHEN l.concentracion_ppm <= 150 THEN 'Dañina para sensibles'
+        WHEN l.concentracion_ppm <= 200 THEN 'Dañina'
+        WHEN l.concentracion_ppm <= 300 THEN 'Muy dañina'
+        ELSE 'Peligrosa'
+    END AS clasificacion
+FROM
+    lecturas l
+JOIN sensores s ON l.id_sensor = s.id_sensor
+JOIN lineas_produccion lp ON s.id_linea = lp.id_linea
+ORDER BY
+    l.fecha_hora DESC
+LIMIT 100; 
